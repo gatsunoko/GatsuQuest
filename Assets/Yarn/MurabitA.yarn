@@ -1,14 +1,38 @@
 ﻿title: NPC
 tags:
+position: -43,-214
 ---
-これはYarn Spinnerを使った会話です。
-蘭丸: こんにちは。
-これはYarn Spinnerを使った会話です。
+<<camera "NPC">>
+<<declare $has_greeted = false>>
+<<if $has_greeted is false>>
+    NPC: 初めまして！
+    <<set $has_greeted to true>>
+<<else>>
+    NPC: やあ、また会ったね。
+<<endif>>
+<<camera "Main">>
 ===
 title: ねこみ
 tags:
+color: red
+position: -38,143
 ---
 ねこみ: おっす！おら信長！
 蘭丸: いや、お前は信長様ではない
-ねこみ: ああ、そうか。でも、お前も信長様ではない。 #portrait:怒り
+ねこみ: ああ、そうか。<br>でも、お前も信長様ではない。 #portrait:怒り
+===
+title: ももたろう
+color: blue
+position: 201,-42
+---
+目の前に犬が現れました。
+きびだんごをあげますか？
+->あげない
+    きびだんごをあげなかった。
+    犬は悲しんでいる！！
+    ->やっぱりあげる
+        きびだんごをあげた
+    ->それでもあげない
+        やっぱりきびだんごはあげなかった
+桃太郎はまたあるき出した。
 ===

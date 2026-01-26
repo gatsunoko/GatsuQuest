@@ -204,6 +204,204 @@ public class DialogueManager : DialoguePresenterBase
         return "";
     }
 
+    // 選択肢のコンテナ（ボタンを並べる親オブジェクト）
+    public Transform optionButtonContainer;
+    // 選択肢ボタンのプレハブ
+    public GameObject optionButtonPrefab;
+
+    // 最後に選ばれた選択肢のID
+    private int selectedOptionIndex = -1;
+
+    // ... (既存のコード)
+
+    // 選択肢の表示
+    public override async YarnTask<DialogueOption?> RunOptionsAsync(DialogueOption[] dialogueOptions, LineCancellationToken token)
+    {
+        // 選択肢コンテナとプレハブがない場合はエラー
+        if (optionButtonContainer == null || optionButtonPrefab == null)
+        {
+            Debug.LogError("Option Button Container or Prefab is not assigned in DialogueManager!");
+            return null; // 何も選ばずに終了
+        }
+
+        // 既存のボタンを削除
+        foreach (Transform child in optionButtonContainer)
+        {
+            Destroy(child.gameObject);
+        }
+
+        optionButtonContainer.gameObject.SetActive(true);
+        selectedOptionIndex = -1;
+
+        // ボタンのリスト
+        List<TextMeshProUGUI> buttonTexts = new List<TextMeshProUGUI>();
+        List<Button> buttons = new List<Button>(); // マウス操作用
+        List<GameObject> cursors = new List<GameObject>(); // カーソル画像用
+
+        // 選択肢ボタンを作成
+        for (int i = 0; i < dialogueOptions.Length; i++)
+        {
+            DialogueOption option = dialogueOptions[i];
+            
+            // 選択不可の選択肢はスキップ
+            if (option.IsAvailable == false) continue;
+
+            GameObject buttonObj = Instantiate(optionButtonPrefab, optionButtonContainer);
+            TextMeshProUGUI buttonText = buttonObj.GetComponentInChildren<TextMeshProUGUI>();
+            Button button = buttonObj.GetComponent<Button>();
+
+            // カーソル画像を検索 (名前が "Cursor" のオブジェクトを探す)
+            Transform cursorTrans = buttonObj.transform.Find("Cursor");
+            GameObject cursorObj = (cursorTrans != null) ? cursorTrans.gameObject : null;
+            
+            if (cursorObj != null)
+            {
+                cursorObj.SetActive(false); // 最初は非表示
+                cursors.Add(cursorObj);
+            }
+            else
+            {
+                // カーソルが見つからない場合のダミー（null除け）
+                cursors.Add(null);
+            }
+
+            if (buttonText != null)
+            {
+                // テキストを設定 (純粋なテキスト)
+                buttonText.text = option.Line.Text.Text;
+                buttonTexts.Add(buttonText);
+            }
+
+            buttons.Add(button);
+
+            // 何番目の選択肢かをキャプチャ
+            int index = i;
+            
+            // マウスクリック時の動作
+            if (button != null)
+            {
+                button.onClick.AddListener(() => 
+                {
+                    selectedOptionIndex = index;
+                });
+            }
+        }
+
+        // 初期選択位置 (0番目)
+        int currentSelection = 0;
+        int maxSelection = buttonTexts.Count - 1;
+        
+        // 最後にカーソルを動かした時間 (点滅リセット用)
+        float lastSelectionChangeTime = Time.unscaledTime;
+
+        // 入力待機ループ
+        while (selectedOptionIndex == -1)
+        {
+            if (token.IsNextContentRequested)
+            {
+                break;
+            }
+
+            // --- キーボード操作 (New Input System) ---
+            bool upPressed = false;
+            bool downPressed = false;
+            bool submitPressed = false;
+
+            if (Keyboard.current != null)
+            {
+                if (Keyboard.current.wKey.wasPressedThisFrame || Keyboard.current.upArrowKey.wasPressedThisFrame) upPressed = true;
+                if (Keyboard.current.sKey.wasPressedThisFrame || Keyboard.current.downArrowKey.wasPressedThisFrame) downPressed = true;
+                if (Keyboard.current.enterKey.wasPressedThisFrame || Keyboard.current.spaceKey.wasPressedThisFrame) submitPressed = true;
+            }
+
+            // 入力があったら点滅タイマーをリセット(即時表示)
+            if (upPressed || downPressed)
+            {
+                lastSelectionChangeTime = Time.unscaledTime;
+            }
+
+            if (upPressed)
+            {
+                currentSelection--;
+                if (currentSelection < 0) currentSelection = maxSelection;
+            }
+            if (downPressed)
+            {
+                currentSelection++;
+                if (currentSelection > maxSelection) currentSelection = 0;
+            }
+
+            // --- カーソル表示更新 (画像点滅) ---
+            // 点滅判定 (0.5秒ごとに切り替え)
+            // 操作直後は (Time - lastSelectionChangeTime) が 0 になるため (< 0.5f) で必ず表示される
+            bool showCursor = (Mathf.Repeat(Time.unscaledTime - lastSelectionChangeTime, 1.0f) < 0.5f);
+
+            for (int i = 0; i < cursors.Count; i++)
+            {
+                GameObject cursor = cursors[i];
+                if (cursor == null) continue;
+
+                if (i == currentSelection)
+                {
+                    // 選択中は点滅
+                    cursor.SetActive(showCursor);
+                }
+                else
+                {
+                    // 非選択時は非表示
+                    cursor.SetActive(false);
+                }
+            }
+
+
+
+            // 決定キー
+            if (submitPressed)
+            {
+                // activeOptionsを再生成 (コンパイルエラー修正)
+                List<DialogueOption> activeOptions = new List<DialogueOption>();
+                foreach (var op in dialogueOptions)
+                {
+                    if (op.IsAvailable) activeOptions.Add(op);
+                }
+
+                // activeOptions[currentSelection] に対応するIDを知る必要がある
+                // DialogueOption オブジェクト自体を返せばいいので、インデックスではなくオブジェクトで管理してもいいが
+                // 返り値は DialogueOption なので、元の配列の中のどれかを探す。
+                // activeOptions[currentSelection] が正解。
+                
+                DialogueOption selectedOption = activeOptions[currentSelection];
+                
+                // 元の配列(dialogueOptions)の中でのインデックスを探す (ID)
+                for(int k=0; k<dialogueOptions.Length; k++)
+                {
+                    if (dialogueOptions[k].DialogueOptionID == selectedOption.DialogueOptionID)
+                    {
+                        selectedOptionIndex = k;
+                        break;
+                    }
+                }
+            }
+
+            await YarnTask.Yield();
+        }
+
+        // UIを隠す
+        optionButtonContainer.gameObject.SetActive(false);
+        foreach (Transform child in optionButtonContainer)
+        {
+            Destroy(child.gameObject);
+        }
+
+        // 選ばれた選択肢を返す
+        if (selectedOptionIndex != -1)
+        {
+            return dialogueOptions[selectedOptionIndex];
+        }
+
+        return null;
+    }
+
     // レイアウト調整
     void AdjustLayout(bool showPortrait)
     {
