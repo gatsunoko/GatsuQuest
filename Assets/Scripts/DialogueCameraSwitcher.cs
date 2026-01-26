@@ -21,15 +21,26 @@ public class DialogueCameraSwitcher : MonoBehaviour
     [SerializeField]
     private string currentCameraName;
 
+    private CinemachineBrain brain;
+    private CinemachineBlendDefinition defaultBlendDefinition; // 初期設定を保存
+
     // 初期化時
     private void Awake() 
     {
-        // DialogueRunnerに手動で登録（確実性のため）
+        // DialogueRunnerに手動で登録
         var runner = FindAnyObjectByType<DialogueRunner>();
         if (runner != null)
         {
-            runner.AddCommandHandler<string>("camera", SwitchCamera);
+            // 文字列配列で受け取るハンドラとして登録
+            runner.AddCommandHandler<string[]>("camera", SwitchCamera);
             Debug.Log("[DialogueCameraSwitcher] Command 'camera' registered successfully.");
+            
+            // Brainを探しておく
+            brain = FindAnyObjectByType<CinemachineBrain>();
+            if (brain != null)
+            {
+                defaultBlendDefinition = brain.DefaultBlend; // 元の設定を保存
+            }
         }
         else
         {
@@ -38,8 +49,39 @@ public class DialogueCameraSwitcher : MonoBehaviour
     }
 
     // Yarn Spinnerから呼び出すコマンド
-    // 使い方: <<camera "CameraName">>
-    public void SwitchCamera(string name)
+    // 使い方: <<camera "CameraName">> または <<camera "CameraName" 2.0>>
+    public void SwitchCamera(string[] args)
+    {
+        if (args.Length == 0)
+        {
+            Debug.LogError("[DialogueCameraSwitcher] 'camera' command requires at least 1 argument (camera name).");
+            return;
+        }
+
+        string cameraName = args[0];
+        
+        if (brain != null)
+        {
+            // 第2引数があればその時間を使う
+            if (args.Length >= 2 && float.TryParse(args[1], out float duration))
+            {
+                var blend = brain.DefaultBlend;
+                blend.Time = duration;
+                brain.DefaultBlend = blend;
+            }
+            else
+            {
+                // ない場合は初期設定に戻す（重要：前のコマンドで変更されたままにしない）
+                brain.DefaultBlend = defaultBlendDefinition;
+            }
+        }
+
+        SwitchCameraInternal(cameraName);
+    }
+    
+    // SwitchCameraWithDuration は削除（統合したため）
+
+    private void SwitchCameraInternal(string name)
     {
         bool found = false;
 
