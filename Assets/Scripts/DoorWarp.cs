@@ -29,6 +29,13 @@ public class DoorWarp : MonoBehaviour
     [Tooltip("ワープ時にOFFにするライトのリスト（屋外ディレクショナルライトなど）")]
     public GameObject[] lightsToTurnOff;
 
+    [Header("マップ切り替え")]
+    [Tooltip("ワープ前にアクティブにするオブジェクト（移動先のマップなど）")]
+    public GameObject[] objectsToActivate;
+
+    [Tooltip("ワープ後に非アクティブにするオブジェクト（移動元のマップなど）")]
+    public GameObject[] objectsToDeactivate;
+
     // ワープ中かどうかのフラグ
     private bool isWarping = false;
 
@@ -40,7 +47,17 @@ public class DoorWarp : MonoBehaviour
         // タグがPlayerの場合のみ実行
         if (other.CompareTag("Player"))
         {
-            StartCoroutine(WarpSequence(other.gameObject));
+            // コルーチンをScreenFader（常駐オブジェクト）で実行することで、
+            // このオブジェクト自身がWarpSequence内で無効化されても処理が止まらないようにする
+            if (ScreenFader.Instance != null)
+            {
+                ScreenFader.Instance.StartCoroutine(WarpSequence(other.gameObject));
+            }
+            else
+            {
+                Debug.LogWarning("ScreenFaderが見つからないため、このオブジェクトでコルーチンを実行します。親オブジェクトを無効化すると処理が止まる可能性があります。");
+                StartCoroutine(WarpSequence(other.gameObject));
+            }
         }
     }
 
@@ -65,6 +82,15 @@ public class DoorWarp : MonoBehaviour
         else
         {
             Debug.LogWarning("ScreenFaderのインスタンスが見つかりません！フェードなしでワープします。");
+        }
+
+        // 2.5 マップの有効化（ワープ先に足場があるように先に行う）
+        if (objectsToActivate != null)
+        {
+            foreach (var obj in objectsToActivate)
+            {
+                if (obj != null) obj.SetActive(true);
+            }
         }
 
         // 3. プレイヤーの位置移動
@@ -111,6 +137,16 @@ public class DoorWarp : MonoBehaviour
         foreach (var light in lightsToTurnOff)
         {
             if (light != null) light.SetActive(false);
+        }
+
+        // 5.5 古いマップの無効化（ライト切り替えの後に行う）
+        if (objectsToDeactivate != null)
+        {
+            foreach (var obj in objectsToDeactivate)
+            {
+                // 自分自身が含まれている場合も、ScreenFader上で実行していれば問題ない
+                if (obj != null) obj.SetActive(false);
+            }
         }
 
         // 処理が安定するまで1フレーム待つ
