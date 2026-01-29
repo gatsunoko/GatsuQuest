@@ -23,8 +23,24 @@ public class PlayerScript : MonoBehaviour
         canMove = value;
     }
 
+    // インタラクションUIスクリプトの参照 (Inspectorで設定可能)
+    public InteractionPromptUI interactionUI;
+    // 現在フォーカスしているNPC
+    private NPCInteractable currentInteractable;
+
     void Start()
     {
+        // InteractionPromptUIを取得、なければ追加する
+        if (interactionUI == null)
+        {
+            interactionUI = GetComponent<InteractionPromptUI>();
+        }
+        
+        if (interactionUI == null)
+        {
+            interactionUI = gameObject.AddComponent<InteractionPromptUI>();
+        }
+
         // アクションのデバッグチェック
         if (interactAction.action == null)
         {
@@ -62,85 +78,108 @@ public class PlayerScript : MonoBehaviour
     void Update()
     {
         // 移動が無効化されている場合は何もしない（会話中などはここで止まる）
-        if (!canMove) return;
+        if (!canMove) 
+        {
+            // 会話中などはUIを強制的に隠す
+            if (interactionUI != null) interactionUI.Hide();
+            return;
+        }
 
-        HandleInteraction();
+        DetectInteractable(); // 毎フレーム周囲をスキャンしてUI表示
+        HandleInteractionInput(); // 入力があったらインタラクト実行
         HandleMovement();
     }
 
-    // インタラクション（会話開始）の処理
-    void HandleInteraction()
+    // インタラクト対象の検出とUI表示
+    void DetectInteractable()
     {
-        // Action経由の入力チェック
-        bool interactActionPressed = (interactAction.action != null && interactAction.action.WasPressedThisFrame());
-        bool clickActionPressed = (clickAction.action != null && clickAction.action.WasPressedThisFrame());
+        currentInteractable = null;
+        bool detected = false;
 
-        // フォールバック（Action設定がうまくいっていない場合のため、直接デバイスもチェック）
-        bool spacePressed = (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame);
-        bool enterPressed = (Keyboard.current != null && Keyboard.current.enterKey.wasPressedThisFrame);
-        bool mousePressed = (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame);
+        // 前方へのRay判定
+        RaycastHit hit;
+        Debug.DrawRay(transform.position + Vector3.up * 0.5f, transform.forward * interactionDistance, Color.red);
 
-        bool interactPressed = interactActionPressed || spacePressed || enterPressed;
-        bool clickPressed = clickActionPressed || mousePressed;
-
-        // キーボード入力（Spaceキー等）の場合
-        if (interactPressed)
+        if (Physics.Raycast(transform.position + Vector3.up * 0.5f, transform.forward, out hit, interactionDistance))
         {
-            Debug.Log("Interact button pressed"); // デバッグログ
-            
-            // プレイヤーの前方にRayを飛ばして判定
-            RaycastHit hit;
-            // 可視化のためにDebug.DrawRayを使用
-            Debug.DrawRay(transform.position + Vector3.up * 0.5f, transform.forward * interactionDistance, Color.red, 1.0f);
-
-            if (Physics.Raycast(transform.position + Vector3.up * 0.5f, transform.forward, out hit, interactionDistance))
+            NPCInteractable npc = hit.collider.GetComponent<NPCInteractable>();
+            if (npc != null)
             {
-                Debug.Log("Ray hit: " + hit.collider.name); // デバッグログ
-
-                NPCInteractable npc = hit.collider.GetComponent<NPCInteractable>();
-                if (npc != null)
+                currentInteractable = npc;
+                if (interactionUI != null)
                 {
-                    npc.Interact();
-                    return;
+                    interactionUI.Show(npc.interactionText);
                 }
-                else
-                {
-                    Debug.Log("Hit object does not have NPCInteractable script");
-                }
-            }
-            else
-            {
-                Debug.Log("Raycast hit nothing");
+                detected = true;
             }
         }
 
-        // マウスクリックの場合
+        // 何も検出されなかった場合（マウスホバーの処理もここに入れるなら拡張可能だが、まずは前方基本）
+        if (!detected)
+        {
+            if (interactionUI != null)
+            {
+                interactionUI.Hide();
+            }
+        }
+    }
+
+    // インタラクション入力処理
+    void HandleInteractionInput()
+    {
+        // Action経由の入力チェック
+        bool interactActionPressed = (interactAction.action != null && interactAction.action.WasPressedThisFrame());
+        
+        // フォールバック
+        bool spacePressed = (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame);
+        bool enterPressed = (Keyboard.current != null && Keyboard.current.enterKey.wasPressedThisFrame);
+        
+        bool interactPressed = interactActionPressed || spacePressed || enterPressed;
+
+        // キーボード/ボタン入力の場合
+        if (interactPressed)
+        {
+            if (currentInteractable != null)
+            {
+                Debug.Log("Interacting with: " + currentInteractable.name);
+                currentInteractable.Interact();
+            }
+        }
+
+        // マウスクリックの処理 (Raycastとは別に、クリックした位置に対しても判定を行う)
+        bool clickActionPressed = (clickAction.action != null && clickAction.action.WasPressedThisFrame());
+        bool mousePressed = (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame);
+        bool clickPressed = clickActionPressed || mousePressed;
+
         if (clickPressed)
         {
-            Debug.Log("Click pressed");
-            // カメラからマウス位置へRayを飛ばして判定
-            if (Camera.main != null)
+            HandleMouseClickInteraction();
+        }
+    }
+
+    // マウスクリック時の個別処理（画面上のクリック）
+    void HandleMouseClickInteraction()
+    {
+        // カメラからマウス位置へRayを飛ばして判定
+        if (Camera.main != null && Mouse.current != null)
+        {
+            Ray ray = Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue());
+            RaycastHit hit;
+            if (Physics.Raycast(ray, out hit, 100f))
             {
-                Ray ray = Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue());
-                RaycastHit hit;
-                if (Physics.Raycast(ray, out hit, 100f))
+                NPCInteractable npc = hit.collider.GetComponent<NPCInteractable>();
+                if (npc != null)
                 {
-                    Debug.Log("Click Ray hit: " + hit.collider.name);
-                    NPCInteractable npc = hit.collider.GetComponent<NPCInteractable>();
-                    if (npc != null)
+                    // 距離チェック
+                    float distance = Vector3.Distance(transform.position, npc.transform.position);
+                    
+                    if (distance <= interactionDistance)
                     {
-                        // 距離チェック
-                        float distance = Vector3.Distance(transform.position, npc.transform.position);
-                        Debug.Log("Distance to NPC: " + distance);
-                        if (distance <= interactionDistance)
-                        {
-                            npc.Interact();
-                            return;
-                        }
-                        else
-                        {
-                            Debug.Log("Too far to interact");
-                        }
+                        npc.Interact();
+                    }
+                    else
+                    {
+                        Debug.Log("Too far to interact via click");
                     }
                 }
             }

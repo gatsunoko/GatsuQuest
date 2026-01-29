@@ -12,6 +12,9 @@ public class DoorWarp : MonoBehaviour
     [Tooltip("プレイヤーのワープ先のTransform（位置と回転）")]
     public Transform targetDestination;
 
+    [Tooltip("ワープ後に表示するマップ名（空欄なら表示しない）")]
+    public string locationName;
+
     [Tooltip("フェードイン・アウトにかかる時間（秒）")]
     public float fadeDuration = 0.5f;
 
@@ -156,6 +159,13 @@ public class DoorWarp : MonoBehaviour
         if (ScreenFader.Instance != null)
         {
             ScreenFader.Instance.FadeIn(fadeDuration);
+            
+            // マップ名が設定されていれば表示 (3秒間)
+            if (!string.IsNullOrEmpty(locationName))
+            {
+                ScreenFader.Instance.ShowLocationName(locationName, 3.0f);
+            }
+            
             yield return new WaitForSeconds(fadeDuration);
         }
 

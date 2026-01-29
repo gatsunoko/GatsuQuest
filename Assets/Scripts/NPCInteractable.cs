@@ -6,6 +6,9 @@ public class NPCInteractable : MonoBehaviour
     // Yarn Spinnerのノード名（Startなど）
     public string yarnNodeName = "Start";
 
+    // インタラクト時に表示するテキスト
+    public string interactionText = "話しかける";
+
     // プレイヤーから呼び出されるインタラクト処理
     public void Interact()
     {
