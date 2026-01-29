@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using UnityEngine.InputSystem;
+using System.Collections.Generic;
 
 public class PlayerScript : MonoBehaviour
 {
@@ -28,6 +29,12 @@ public class PlayerScript : MonoBehaviour
     // 現在フォーカスしているNPC
     private NPCInteractable currentInteractable;
 
+    // 近くにいるNPCのリスト
+    private List<NPCInteractable> nearbyNPCs = new List<NPCInteractable>();
+    
+    // インタラクト可能な視野角（前方何度まで許容するか）
+    public float interactionAngle = 60f; 
+
     void Start()
     {
         // InteractionPromptUIを取得、なければ追加する
@@ -48,8 +55,7 @@ public class PlayerScript : MonoBehaviour
         }
         else
         {
-            Debug.Log("PlayerScript: Interact Action は正常に設定されています: " + interactAction.action.name);
-            // 念のためここでも有効化
+            // Debug.Log("PlayerScript: Interact Action は正常に設定されています: " + interactAction.action.name);
             interactAction.action.Enable();
         }
 
@@ -90,36 +96,81 @@ public class PlayerScript : MonoBehaviour
         HandleMovement();
     }
 
-    // インタラクト対象の検出とUI表示
+    // インタラクト対象の検出とUI表示（Triggerエリア内 & 向き判定）
     void DetectInteractable()
     {
-        currentInteractable = null;
-        bool detected = false;
+        NPCInteractable bestCandidate = null;
+        float bestDot = -1.0f; // -1 (反対) ～ 1 (正面)
 
-        // 前方へのRay判定
-        RaycastHit hit;
-        Debug.DrawRay(transform.position + Vector3.up * 0.5f, transform.forward * interactionDistance, Color.red);
-
-        if (Physics.Raycast(transform.position + Vector3.up * 0.5f, transform.forward, out hit, interactionDistance))
+        // 近くのNPCリストの中から、一番プレイヤーが向いている方向にあるものを探す
+        foreach (var npc in nearbyNPCs)
         {
-            NPCInteractable npc = hit.collider.GetComponent<NPCInteractable>();
-            if (npc != null)
+            if (npc == null || !npc.gameObject.activeSelf) continue;
+
+            Vector3 directionToNpc = (npc.transform.position - transform.position).normalized;
+            // 高さの影響を無視してXZ平面だけで判定する（小人などの場合にも対応しやすい）
+            directionToNpc.y = 0;
+            Vector3 forward = transform.forward;
+            forward.y = 0;
+            
+            // 内積を計算 (1に近いほど正面)
+            float dot = Vector3.Dot(forward.normalized, directionToNpc);
+            
+            // 指定した角度（視野角）以内かどうか判定
+            // Dotが cos(angle) より大きければ範囲内
+            // 例: 60度なら cos(30) = 0.866... ぐらい
+            // ここでは簡易的に角度計算してから比較
+            float angle = Vector3.Angle(forward, directionToNpc);
+            
+            if (angle <= interactionAngle)
             {
-                currentInteractable = npc;
-                if (interactionUI != null)
+                // 一番正面に近いものを優先
+                if (dot > bestDot)
                 {
-                    interactionUI.Show(npc.interactionText);
+                    bestDot = dot;
+                    bestCandidate = npc;
                 }
-                detected = true;
             }
         }
 
-        // 何も検出されなかった場合（マウスホバーの処理もここに入れるなら拡張可能だが、まずは前方基本）
-        if (!detected)
+        // 候補が見つかったか更新
+        if (bestCandidate != currentInteractable)
         {
-            if (interactionUI != null)
+            currentInteractable = bestCandidate;
+            
+            if (currentInteractable != null)
             {
-                interactionUI.Hide();
+                if (interactionUI != null) interactionUI.Show(currentInteractable.interactionText);
+            }
+            else
+            {
+                if (interactionUI != null) interactionUI.Hide();
+            }
+        }
+    }
+
+    // Triggerによるエリア侵入検知
+    void OnTriggerEnter(Collider other)
+    {
+        NPCInteractable npc = other.GetComponent<NPCInteractable>();
+        if (npc != null && !nearbyNPCs.Contains(npc))
+        {
+            nearbyNPCs.Add(npc);
+        }
+    }
+
+    // Triggerによるエリア退出検知
+    void OnTriggerExit(Collider other)
+    {
+        NPCInteractable npc = other.GetComponent<NPCInteractable>();
+        if (npc != null && nearbyNPCs.Contains(npc))
+        {
+            nearbyNPCs.Remove(npc);
+            // 今ターゲットしているのがこれだったら解除
+            if (currentInteractable == npc)
+            {
+                currentInteractable = null;
+                if (interactionUI != null) interactionUI.Hide();
             }
         }
     }
@@ -146,7 +197,10 @@ public class PlayerScript : MonoBehaviour
             }
         }
 
-        // マウスクリックの処理 (Raycastとは別に、クリックした位置に対しても判定を行う)
+        // マウスクリックの処理 (Raycastでの既存処理は一応残しておくか、不要なら削除。
+        // 今回は「小人に当たりづらい」問題を解決するTrigger式がメインだが、
+        // 明示的にクリックしたい場合もあるかもしれないため、干渉しない限り残しておいて良い。
+        // ただしTrigger式と重複しないように注意)
         bool clickActionPressed = (clickAction.action != null && clickAction.action.WasPressedThisFrame());
         bool mousePressed = (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame);
         bool clickPressed = clickActionPressed || mousePressed;
@@ -170,16 +224,12 @@ public class PlayerScript : MonoBehaviour
                 NPCInteractable npc = hit.collider.GetComponent<NPCInteractable>();
                 if (npc != null)
                 {
-                    // 距離チェック
+                    // 距離チェック (interactionDistanceはRaycast用だったが、クリック時の最大距離として再利用)
                     float distance = Vector3.Distance(transform.position, npc.transform.position);
                     
-                    if (distance <= interactionDistance)
+                    if (distance <= interactionDistance * 2.5f) // クリックの場合は少し遠くても許容するなど調整
                     {
                         npc.Interact();
-                    }
-                    else
-                    {
-                        Debug.Log("Too far to interact via click");
                     }
                 }
             }
