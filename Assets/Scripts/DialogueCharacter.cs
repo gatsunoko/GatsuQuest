@@ -10,6 +10,9 @@ public class DialogueCharacter : ScriptableObject
     // 基本の顔画像
     public Sprite defaultPortrait;
 
+    // 会話時の効果音（設定がない場合は鳴らさない）
+    public AudioClip voiceSound;
+
     // 表情差分（タグ名 -> 画像）
     // Inspectorで設定しやすいように独自のクラス定義
     [System.Serializable]

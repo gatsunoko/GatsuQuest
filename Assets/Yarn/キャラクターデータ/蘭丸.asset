@@ -14,4 +14,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DialogueCharacter
   characterName: "\u862D\u4E38"
   defaultPortrait: {fileID: 21300000, guid: 0e76b010029cd3242adef9ea600c5c90, type: 3}
+  voiceSound: {fileID: 8300000, guid: 2c0f059f98179a84b96358f18fd8ee1c, type: 3}
   expressions: []

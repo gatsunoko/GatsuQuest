@@ -24,6 +24,10 @@ public class DialogueManager : DialoguePresenterBase
     // 顔画像
     public Image portraitImage;
 
+    [Header("Typewriter Settings")]
+    public float typeWriterSpeed = 0.1f; // 1文字の表示間隔
+    public AudioSource audioSource; // 効果音再生用
+
     // キャラクターデータベース（ScriptableObjectのリスト）
     public List<DialogueCharacter> characterDatabase;
 
@@ -72,12 +76,6 @@ public class DialogueManager : DialoguePresenterBase
     // 行（セリフ）の表示
     public override async YarnTask RunLineAsync(LocalizedLine dialogueLine, LineCancellationToken token)
     {
-        // 1. テキスト表示
-        // LocalizedLine.Text.Text だと "Name: Hello" のようになる場合があるため、
-        // TextWithoutCharacterName を使うのが適切
-        if (dialogueText != null)
-            dialogueText.text = dialogueLine.TextWithoutCharacterName.Text;
-
         // 2. キャラクター名と画像の解決
         string characterName = dialogueLine.CharacterName;
         Sprite spriteToDisplay = null;
@@ -128,6 +126,77 @@ public class DialogueManager : DialoguePresenterBase
                 portraitImage.gameObject.SetActive(false);
                 AdjustLayout(false);
             }
+        }
+
+        // 1. テキスト表示 (Typewriter Effect)
+        if (dialogueText != null)
+        {
+            // まず空にする
+            dialogueText.text = "";
+            
+            string fullText = dialogueLine.TextWithoutCharacterName.Text;
+            
+            // 効果音の準備
+            AudioClip currentClip = null;
+            if (character != null)
+            {
+                currentClip = character.voiceSound;
+            }
+
+            // スピードの上書きチェック
+            float currentSpeed = typeWriterSpeed;
+            float speedOverride = GetSpeedTag(dialogueLine.Metadata);
+            if (speedOverride > 0f)
+            {
+                currentSpeed = speedOverride;
+            }
+
+            // 1文字ずつ表示
+            int i = 0;
+            while (i < fullText.Length)
+            {
+                // キャンセル（スキップ）チェック
+                if (token.IsNextContentRequested)
+                {
+                    dialogueText.text = fullText;
+                    break;
+                }
+
+                // タグ検知 (< から始まり > で終わる箇所)
+                if (fullText[i] == '<')
+                {
+                    int closingIndex = fullText.IndexOf('>', i);
+                    if (closingIndex != -1)
+                    {
+                        // タグ部分をまとめて追加 (<b>, <br>, <color=...> など)
+                        string tag = fullText.Substring(i, closingIndex - i + 1);
+                        dialogueText.text += tag;
+                        
+                        // インデックスを進める
+                        i = closingIndex + 1;
+                        
+                        // タグ表示時は待機時間を入れずに次の文字へ
+                        continue;
+                    }
+                }
+
+                // 通常の文字を追加
+                dialogueText.text += fullText[i];
+
+                // 音を鳴らす (空白以外)
+                if (currentClip != null && audioSource != null && !string.IsNullOrWhiteSpace(fullText[i].ToString()))
+                {
+                    audioSource.PlayOneShot(currentClip);
+                }
+
+                // インデックスを進める
+                i++;
+
+                // 待機
+                await YarnTask.Delay((int)(currentSpeed * 1000));
+            }
+            // 念の為最後に全文確実に入れる
+            dialogueText.text = fullText;
         }
 
         // ユーザーの入力待ちをする
@@ -202,6 +271,23 @@ public class DialogueManager : DialoguePresenterBase
             }
         }
         return "";
+    }
+
+    // メタデータから speed タグの値を取得（なければ -1 を返す）
+    private float GetSpeedTag(string[] metadata)
+    {
+        if (metadata == null) return -1f;
+        foreach (string data in metadata)
+        {
+            if (data.StartsWith("speed:"))
+            {
+                if (float.TryParse(data.Substring("speed:".Length).Trim(), out float speed))
+                {
+                    return speed;
+                }
+            }
+        }
+        return -1f;
     }
 
     // 選択肢のコンテナ（ボタンを並べる親オブジェクト）
