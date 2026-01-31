@@ -229,6 +229,15 @@ public class DialogueManager : DialoguePresenterBase
         }
 
         // ユーザーの入力待ちをする
+        // #autoタグがある場合は待機せずに進む
+        if (GetAutoTag(dialogueLine.Metadata))
+        {
+             // 何もしない（Task.CompletedTaskと同じ扱い）
+             // ただし、タイプライター後の若干の余韻が必要ならここにDelayを入れてもいい
+             // 今回は「自動で選択肢」とのことなので待たない
+             return; 
+        }
+
         // UserRequestedViewAdvancement() が呼ばれるまで待機
         await WaitForInputAsync(token);
     }
@@ -319,6 +328,20 @@ public class DialogueManager : DialoguePresenterBase
         return -1f;
     }
 
+    // メタデータから #auto タグの有無を取得
+    private bool GetAutoTag(string[] metadata)
+    {
+        if (metadata == null) return false;
+        foreach (string data in metadata)
+        {
+            if (data == "auto")
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // 選択肢のコンテナ（ボタンを並べる親オブジェクト）
     public Transform optionButtonContainer;
     // 選択肢ボタンのプレハブ
@@ -347,6 +370,12 @@ public class DialogueManager : DialoguePresenterBase
 
         optionButtonContainer.gameObject.SetActive(true);
         selectedOptionIndex = -1;
+
+        // Skipフラグをリセット（前の入力が残らないように）
+        skipInputRequested = false;
+
+        // 入力の誤爆を防ぐために少しだけ待つ
+        await YarnTask.Delay(200); // 0.2秒待機
 
         // ボタンのリスト
         List<TextMeshProUGUI> buttonTexts = new List<TextMeshProUGUI>();

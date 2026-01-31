@@ -595,8 +595,8 @@ MonoBehaviour:
   namePanel: {fileID: 855343173}
   nameText: {fileID: 1459568997}
   portraitImage: {fileID: 700468084}
-  typeWriterSpeed: 0.1
-  audioSource: {fileID: 0}
+  typeWriterSpeed: 0.05
+  audioSource: {fileID: 438574451}
   characterDatabase:
   - {fileID: 11400000, guid: 9ca4ae537457a0a4caa6f06654e8f3ef, type: 2}
   - {fileID: 11400000, guid: 46a155512a0ca534693b616b8dc3194e, type: 2}
@@ -3712,6 +3712,10 @@ PrefabInstance:
     - target: {fileID: 3811566586725737203, guid: f8166e8de502fa04299b5a34e96a0bc4, type: 3}
       propertyPath: m_Name
       value: PlayerCanvas
+      objectReference: {fileID: 0}
+    - target: {fileID: 3811566586725737203, guid: f8166e8de502fa04299b5a34e96a0bc4, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4685761428077127023, guid: f8166e8de502fa04299b5a34e96a0bc4, type: 3}
       propertyPath: m_Pivot.x
