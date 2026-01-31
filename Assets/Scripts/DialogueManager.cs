@@ -37,12 +37,32 @@ public class DialogueManager : DialoguePresenterBase
     // 行を進めるための完了通知用 Action (Yarn v3 ではTaskCompletionSourceなどを使うが、ここではクリック待ち用)
     private System.Action onUserRequestAdvance = null;
 
+    // スキップリクエスト用フラグ
+    private bool skipInputRequested = false;
+
     public void Awake()
     {
         // 初期状態は非表示
         if (dialoguePanel != null) dialoguePanel.SetActive(false);
         if (namePanel != null) namePanel.SetActive(false);
         if (portraitImage != null) portraitImage.gameObject.SetActive(false);
+    }
+
+    private void Update()
+    {
+        // 会話中（パネルが出ている時）のみ入力を監視
+        if (dialoguePanel != null && dialoguePanel.activeSelf)
+        {
+             if ((Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame) ||
+                (Keyboard.current != null && Keyboard.current.enterKey.wasPressedThisFrame) ||
+                (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame))
+            {
+                skipInputRequested = true;
+                
+                // 入力待ちの状態であれば、進める処理も呼ぶ
+                UserRequestedViewAdvancement();
+            }
+        }
     }
 
     // 会話開始時
@@ -151,14 +171,23 @@ public class DialogueManager : DialoguePresenterBase
                 currentSpeed = speedOverride;
             }
 
+            // フラグをリセット
+            skipInputRequested = false;
+
             // 1文字ずつ表示
             int i = 0;
             while (i < fullText.Length)
             {
-                // キャンセル（スキップ）チェック
-                if (token.IsNextContentRequested)
+                // キャンセル（スキップ）チェック (Yarnの標準機能 + 手動入力フラグ)
+                if (token.IsNextContentRequested || skipInputRequested)
                 {
                     dialogueText.text = fullText;
+                    // フラグは消費するが、この後のWaitForInputAsyncのためにtrueのままにしておくと
+                    // 直ちに閉じてしまう恐れがある？
+                    // いや、WaitForInputAsyncは await YarnTask.Yield() から始まるので
+                    // inputSystemのwasPressedThisFrameは次のフレームではfalseになるはずだが
+                    // flagは手動でfalseにしないといけない。
+                    skipInputRequested = false; 
                     break;
                 }
 
