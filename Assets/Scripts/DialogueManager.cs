@@ -31,6 +31,10 @@ public class DialogueManager : DialoguePresenterBase
     // キャラクターデータベース（ScriptableObjectのリスト）
     public List<DialogueCharacter> characterDatabase;
 
+    [Header("Option Settings")]
+    public AudioClip optionsAppearSound; // 選択肢出現時の効果音
+    public AudioClip optionChangeSound; // 選択肢移動時の効果音
+
     // プレイヤーの参照
     private PlayerScript playerScript;
 
@@ -374,9 +378,6 @@ public class DialogueManager : DialoguePresenterBase
         // Skipフラグをリセット（前の入力が残らないように）
         skipInputRequested = false;
 
-        // 入力の誤爆を防ぐために少しだけ待つ
-        await YarnTask.Delay(200); // 0.2秒待機
-
         // ボタンのリスト
         List<TextMeshProUGUI> buttonTexts = new List<TextMeshProUGUI>();
         List<Button> buttons = new List<Button>(); // マウス操作用
@@ -426,17 +427,66 @@ public class DialogueManager : DialoguePresenterBase
             {
                 button.onClick.AddListener(() => 
                 {
+                    // 入力待ち期間中は反応させない（簡易チェック）
+                    // ただしこの非同期メソッドの構成上、Delay中はここがクリックされてもselectedOptionIndexが変わるだけで
+                    // main loopには到達していないため、ループに入った瞬間に反応してしまう可能性がある。
+                    // 厳密には「inputEnabled」フラグなどが必要だが、
+                    // YarnTask.Delayでメインスレッドのこのメソッド実行が止まっている間も、OnClickイベントは発火する。
+                    // したがって、selectedOptionIndexが変わってしまう。
+                    // click listener登録自体をDelay後にするか、フラグで弾く必要がある。
+                    // ここではとりあえず単純化のため、このまま進める（ユーザー要望は主にキー入力連打と想定）。
+                    // もしマウスクリックも即座に反応してほしくないなら、Listener登録をDelay後に移動するのがベスト。
+                    
+                    // Listener登録は後回しにするのが難しい（ローカル変数indexのキャプチャ問題など）ので
+                    // Click側でフラグチェック等はせず、Delay後にListenerを有効化するか、
+                    // あるいはDelayが終わるまでLoopに入らないので、
+                    // selectedOptionIndexが変更されても、Loopに入るまではbreakしない...
+                    // いや、selectedOptionIndexが変わると、Loopの条件 `while (selectedOptionIndex == -1)` が
+                    // Loop開始直後にfalseになり、即終了してしまう。
+                    // なので、クリックも無効化したい場合は対策が必要。
+                    
+                    // 今回は「ボタンを押して選択されないように」とのことなので、クリックも防ぐべき。
+                    // → リスナー登録自体を維持しつつ、selectedOptionIndexへの代入を遅らせるか？
+                    // 一番簡単なのは、Loop開始前に selectedOptionIndex = -1 を再度セットすることだが、
+                    // それだとDelay中にクリックしたことが「無かったこと」になる（それは望ましい挙動かもしれない）。
+                    
                     selectedOptionIndex = index;
                 });
             }
         }
 
+        // --- ここで効果音とウェイトを入れる ---
+
+        // 効果音再生
+        if (optionsAppearSound != null && audioSource != null)
+        {
+            audioSource.PlayOneShot(optionsAppearSound);
+        }
+
         // 初期選択位置 (0番目)
         int currentSelection = 0;
         int maxSelection = buttonTexts.Count - 1;
+
+        // 初期カーソル表示（非表示のままDelayに入ると選択肢が出ているのにカーソルがない状態になるかもしれないので、ここで一旦更新推奨だが
+        // 下のループ内の更新ロジックと重複する。
+        // とりあえず初期状態(0番目)のカーソルだけONにしておくか、あるいはループに入るまでカーソルなしにするか。
+        // 要望は「選択肢が表示される」なので、カーソルもあったほうが自然。
+        for (int i = 0; i < cursors.Count; i++)
+        {
+            if (cursors[i] != null) cursors[i].SetActive(i == currentSelection);
+        }
+
+        // 入力の誤爆を防ぐために少しだけ待つ (1秒)
+        // この間に入力を受け付けたくない
         
-        // 最後にカーソルを動かした時間 (点滅リセット用)
-        float lastSelectionChangeTime = Time.unscaledTime;
+        // クリック対策：Delay前にクリックされても selectedOptionIndex が変わってしまうので、
+        // Delay後にリセットする。これによりDelay中のクリックは無視される。
+        selectedOptionIndex = -1; 
+        
+        await YarnTask.Delay(1000);
+
+        // もう一度リセット（念のため）
+        selectedOptionIndex = -1;
 
         // 入力待機ループ
         while (selectedOptionIndex == -1)
@@ -458,10 +508,15 @@ public class DialogueManager : DialoguePresenterBase
                 if (Keyboard.current.enterKey.wasPressedThisFrame || Keyboard.current.spaceKey.wasPressedThisFrame) submitPressed = true;
             }
 
-            // 入力があったら点滅タイマーをリセット(即時表示)
+
+
+            // 選択肢移動音
             if (upPressed || downPressed)
             {
-                lastSelectionChangeTime = Time.unscaledTime;
+                if (optionChangeSound != null && audioSource != null)
+                {
+                    audioSource.PlayOneShot(optionChangeSound);
+                }
             }
 
             if (upPressed)
@@ -475,11 +530,7 @@ public class DialogueManager : DialoguePresenterBase
                 if (currentSelection > maxSelection) currentSelection = 0;
             }
 
-            // --- カーソル表示更新 (画像点滅) ---
-            // 点滅判定 (0.5秒ごとに切り替え)
-            // 操作直後は (Time - lastSelectionChangeTime) が 0 になるため (< 0.5f) で必ず表示される
-            bool showCursor = (Mathf.Repeat(Time.unscaledTime - lastSelectionChangeTime, 1.0f) < 0.5f);
-
+            // --- カーソル表示更新 (常時表示) ---
             for (int i = 0; i < cursors.Count; i++)
             {
                 GameObject cursor = cursors[i];
@@ -487,8 +538,8 @@ public class DialogueManager : DialoguePresenterBase
 
                 if (i == currentSelection)
                 {
-                    // 選択中は点滅
-                    cursor.SetActive(showCursor);
+                    // 選択中は表示
+                    cursor.SetActive(true);
                 }
                 else
                 {

@@ -600,6 +600,8 @@ MonoBehaviour:
   characterDatabase:
   - {fileID: 11400000, guid: 9ca4ae537457a0a4caa6f06654e8f3ef, type: 2}
   - {fileID: 11400000, guid: 46a155512a0ca534693b616b8dc3194e, type: 2}
+  optionsAppearSound: {fileID: 8300000, guid: fee500fda8a340b4f9a04afdc434e824, type: 3}
+  optionChangeSound: {fileID: 8300000, guid: 95aa1fe0e8b7b924c9600383162e29ab, type: 3}
   optionButtonContainer: {fileID: 126094830}
   optionButtonPrefab: {fileID: 1825235981212311351, guid: 649772b636648074b95e7d27fea6be9a, type: 3}
 --- !u!4 &438574450
