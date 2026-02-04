@@ -39,6 +39,10 @@ public class DoorWarp : MonoBehaviour
     [Tooltip("ワープ後に非アクティブにするオブジェクト（移動元のマップなど）")]
     public GameObject[] objectsToDeactivate;
 
+    [Header("カメラ設定")]
+    [Tooltip("ワープ時に切り替えるCinemachineカメラ（指定がない場合は変更しません）")]
+    public CinemachineCamera targetCamera;
+
     // ワープ中かどうかのフラグ
     private bool isWarping = false;
 
@@ -115,21 +119,8 @@ public class DoorWarp : MonoBehaviour
 
         player.transform.rotation = Quaternion.Euler(0, targetYAngle, 0);
 
-        // 4. カメラのワープ処理 (Cinemachineが滑らかに移動してしまうのを防ぐ)
-        var brain = CinemachineBrain.GetActiveBrain(0);
-        if (brain != null)
-        {
-             // プレイヤーを追従しているアクティブな仮想カメラを探す
-             var vcam = brain.ActiveVirtualCamera as CinemachineCamera;
-             
-             // フォローまたはルックアット対象がプレイヤーの場合
-             if (vcam != null && (vcam.Follow == player.transform || vcam.LookAt == player.transform))
-             {
-                 // Cinemachineに「ターゲットがワープした」と通知して、即座にカットさせる
-                 // 以前の位置との差分（Delta）を渡す必要がある
-                 vcam.OnTargetObjectWarped(player.transform, targetDestination.position - oldPosition);
-             }
-        }
+        // 4. カメラの切り替え（指定がある場合）
+        SwitchCamera(targetCamera);
         
         // 5. ライトの切り替え
         foreach (var light in lightsToTurnOn)
@@ -176,5 +167,30 @@ public class DoorWarp : MonoBehaviour
         }
 
         isWarping = false;
+    }
+    // 指定されたカメラをアクティブにする（Priority操作）
+    private void SwitchCamera(CinemachineCamera target)
+    {
+        if (target == null) return;
+
+        // ターゲットを強制的にアクティブ化（InActiveだと検索に引っかからない、動作しないなどの防止）
+        target.gameObject.SetActive(true);
+        
+        // ターゲットを優先度最高にする (他が20とかでも勝てるように大きくする)
+        target.Priority = 100;
+
+        // シーン内の全てのCinemachineCameraを探す
+        // Note: InactiveなものはFindObjectsByTypeでは見つからないが、Activeなものだけで競合を防げればOK
+        var allCameras = FindObjectsByType<CinemachineCamera>(FindObjectsSortMode.None);
+        foreach (var cam in allCameras)
+        {
+            // ターゲット以外は優先度を下げる
+            if (cam != target)
+            {
+                cam.Priority = 0; 
+            }
+        }
+        
+        Debug.Log($"[DoorWarp] Switched Camera to '{target.name}' (Priority 100). Others set to 0.");
     }
 }
