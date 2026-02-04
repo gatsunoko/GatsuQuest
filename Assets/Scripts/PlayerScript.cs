@@ -35,8 +35,18 @@ public class PlayerScript : MonoBehaviour
     // インタラクト可能な視野角（前方何度まで許容するか）
     public float interactionAngle = 60f; 
 
+    private Rigidbody rb;
+
     void Start()
     {
+        // Rigidbodyの取得と回転制限の設定
+        rb = GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            // 物理演算による回転を防ぐ
+            rb.constraints = RigidbodyConstraints.FreezeRotation;
+        }
+
         // InteractionPromptUIを取得、なければ追加する
         if (interactionUI == null)
         {
@@ -84,16 +94,17 @@ public class PlayerScript : MonoBehaviour
     void Update()
     {
         // 移動が無効化されている場合は何もしない（会話中などはここで止まる）
-        if (!canMove) 
+        if (canMove) 
+        {
+             DetectInteractable(); // 毎フレーム周囲をスキャンしてUI表示
+             HandleInteractionInput(); // 入力があったらインタラクト実行
+             HandleMovement();
+        }
+        else
         {
             // 会話中などはUIを強制的に隠す
             if (interactionUI != null) interactionUI.Hide();
-            return;
         }
-
-        DetectInteractable(); // 毎フレーム周囲をスキャンしてUI表示
-        HandleInteractionInput(); // 入力があったらインタラクト実行
-        HandleMovement();
     }
 
     // インタラクト対象の検出とUI表示（Triggerエリア内 & 向き判定）
@@ -110,6 +121,8 @@ public class PlayerScript : MonoBehaviour
             Vector3 directionToNpc = (npc.transform.position - transform.position).normalized;
             // 高さの影響を無視してXZ平面だけで判定する（小人などの場合にも対応しやすい）
             directionToNpc.y = 0;
+            
+            // モデルの向きを使用する
             Vector3 forward = transform.forward;
             forward.y = 0;
             
@@ -281,11 +294,12 @@ public class PlayerScript : MonoBehaviour
         // 斜め移動が速くならないように正規化
         Vector3 normalizedDirection = moveDirection.normalized;
 
-        // 移動を実行（ワールド座標系）
+        // 移動を実行（ワールド座標系） -- これは親(Root)を動かす
         transform.Translate(normalizedDirection * moveSpeed * Time.deltaTime, Space.World);
 
-        // 移動方向に体を回転させる
-        if (normalizedDirection != Vector3.zero)
+        // 移動方向に体を回転させる 
+        // ノイズ対策: 入力が非常に小さい場合は回転させない (0.001fの閾値)
+        if (moveDirection.sqrMagnitude > 0.001f)
         {
             Quaternion toRotation = Quaternion.LookRotation(normalizedDirection, Vector3.up);
             transform.rotation = Quaternion.Slerp(transform.rotation, toRotation, rotationSpeed * Time.deltaTime);

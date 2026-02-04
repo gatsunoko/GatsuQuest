@@ -300,8 +300,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 330585543}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.38268343, y: 0, z: 0, w: 0.92387956}
-  m_LocalPosition: {x: -3.9, y: 5.547615, z: -6.4376154}
+  m_LocalRotation: {x: 0.26201233, y: 0, z: 0, w: 0.9650646}
+  m_LocalPosition: {x: -3.9, y: 4.2337084, z: -7.540473}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1796,13 +1796,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1118321640}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.38268343, y: 0, z: 0, w: 0.92387956}
-  m_LocalPosition: {x: -1.7339902, y: 4.817615, z: -8.287616}
+  m_LocalRotation: {x: 0.26201233, y: -0, z: -0, w: 0.9650646}
+  m_LocalPosition: {x: -1.7339902, y: 3.5037084, z: -9.390473}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1525214382}
-  m_LocalEulerAnglesHint: {x: 45, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 30.379, y: 0, z: 0}
 --- !u!114 &1118321646
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1815,7 +1815,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 886251e9a18ece04ea8e61686c173e1b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Cinemachine::Unity.Cinemachine.CinemachinePositionComposer
-  CameraDistance: 6.7
+  CameraDistance: 6.77
   DeadZoneDepth: 0
   Composition:
     ScreenPosition: {x: 0, y: 0}
