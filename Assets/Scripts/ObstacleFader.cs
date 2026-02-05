@@ -70,6 +70,13 @@ public class ObstacleFader : MonoBehaviour
         // まだ透明モードでないなら切り替える
         SetMaterialTransparent();
 
+        // オブジェクトが無効な場合はコルーチンを走らせられないので即時適用
+        if (!gameObject.activeInHierarchy)
+        {
+            SetAlphaImmediate(targetAlpha);
+            return;
+        }
+
         if (currentCoroutine != null) StopCoroutine(currentCoroutine);
         currentCoroutine = StartCoroutine(FadeRoutine(targetAlpha));
     }
@@ -81,6 +88,14 @@ public class ObstacleFader : MonoBehaviour
     {
         fadeSpeed = speed;
         isFadingOut = false;
+
+        // オブジェクトが無効な場合はコルーチンを走らせられないので即時適用
+        if (!gameObject.activeInHierarchy)
+        {
+            SetAlphaImmediate(1.0f);
+            RestoreMaterialOpaque();
+            return;
+        }
 
         if (currentCoroutine != null) StopCoroutine(currentCoroutine);
         currentCoroutine = StartCoroutine(FadeRoutine(1.0f));
@@ -187,6 +202,18 @@ public class ObstacleFader : MonoBehaviour
                 m.DisableKeyword("_SURFACE_TYPE_OPAQUE");
             }
              m.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+        }
+    }
+    private void SetAlphaImmediate(float alpha)
+    {
+        for (int i = 0; i < materials.Count; i++)
+        {
+            Material m = materials[i];
+            if (!m.HasProperty("_BaseColor")) continue;
+
+            Color color = m.GetColor("_BaseColor");
+            color.a = alpha;
+            m.SetColor("_BaseColor", color);
         }
     }
 }

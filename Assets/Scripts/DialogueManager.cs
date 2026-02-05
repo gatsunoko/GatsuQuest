@@ -66,6 +66,9 @@ public class DialogueManager : DialoguePresenterBase
                 // 入力待ちの状態であれば、進める処理も呼ぶ
                 UserRequestedViewAdvancement();
             }
+            
+            // ルビの位置更新
+            UpdateRubiesPosition();
         }
     }
 
@@ -158,7 +161,19 @@ public class DialogueManager : DialoguePresenterBase
             // まず空にする
             dialogueText.text = "";
             
-            string fullText = dialogueLine.TextWithoutCharacterName.Text;
+            // 古いルビを削除
+            foreach(var ruby in activeRubies)
+            {
+                if(ruby != null) Destroy(ruby);
+            }
+            activeRubies.Clear();
+            activeRubyList.Clear();
+
+            string rawText = dialogueLine.TextWithoutCharacterName.Text;
+            
+            // ルビ解析 (タグを除去したテキストを取得)
+            List<RubyData> rubies;
+            string fullText = ParseRubies(rawText, out rubies);
             
             // 効果音の準備
             AudioClip currentClip = null;
@@ -186,13 +201,51 @@ public class DialogueManager : DialoguePresenterBase
                 if (token.IsNextContentRequested || skipInputRequested)
                 {
                     dialogueText.text = fullText;
-                    // フラグは消費するが、この後のWaitForInputAsyncのためにtrueのままにしておくと
-                    // 直ちに閉じてしまう恐れがある？
-                    // いや、WaitForInputAsyncは await YarnTask.Yield() から始まるので
-                    // inputSystemのwasPressedThisFrameは次のフレームではfalseになるはずだが
-                    // flagは手動でfalseにしないといけない。
+                    
+                    // 残りのルビも全て生成
+                    foreach(var ruby in rubies)
+                    {
+                        if (!ruby.isSpawned) // まだ生成されていないもの
+                        {
+                            // インデックスのみ計算（スキップ時は全表示されるので単純）
+                            int visibleIndex = GetVisibleLength(fullText.Substring(0, ruby.startIndex));
+                            SpawnRuby(ruby, visibleIndex);
+                            ruby.isSpawned = true;
+                        }
+                    }
+
                     skipInputRequested = false; 
                     break;
+                }
+
+                // ルビ生成チェック
+                // 文字が表示されきったタイミング（漢字の最後の文字に到達した時）で生成
+                foreach(var ruby in rubies)
+                {
+                    if (!ruby.isSpawned)
+                    {
+                        // startIndex + kanjiLength でルビ対象部分の終了インデックス（排他）
+                        // i は現在処理中の文字インデックス。 
+                        // 例: "漢字" (len=2, start=2). chars: 2,3. last char index = 3.
+                        // i == 3 の時、 "字" を処理中。
+                        // この文字を表示した後にルビを出したい。
+                        
+                        // ただし、iは0から増えていく。
+                        // fullTextにはタグは含まれていない（ParseRubiesで除去済みだがHTMLタグはあるかもしれない）
+                        // visibleLengthを使うのが確実だが、fullText上でのインデックス計算でいく。
+                        
+                        // ruby.kanji には HTMLタグが含まれている可能性がある ("<b>漢</b>"など)
+                        // ParseRubiesのロジックでは kanji はタグの中身そのまま。
+                        
+                        if (i >= ruby.startIndex + ruby.kanji.Length - 1)
+                        {
+                            // 現在の表示済み文字数が、このルビがかかる漢字の開始位置
+                            // ここでの GetVisibleLength は stripTags したもの
+                            int visibleIndex = GetVisibleLength(fullText.Substring(0, ruby.startIndex));
+                            SpawnRuby(ruby, visibleIndex);
+                            ruby.isSpawned = true;
+                        }
+                    }
                 }
 
                 // タグ検知 (< から始まり > で終わる箇所)
@@ -315,6 +368,109 @@ public class DialogueManager : DialoguePresenterBase
         return "";
     }
 
+    // ルビを生成するメソッド
+    private void SpawnRuby(RubyData ruby, int visibleIndex)
+    {
+        if (rubyTextPrefab == null || rubyContainer == null) return;
+
+        GameObject obj = Instantiate(rubyTextPrefab, rubyContainer);
+        TextMeshProUGUI text = obj.GetComponent<TextMeshProUGUI>();
+        
+        if (text != null)
+        {
+            text.text = ruby.reading;
+            // フォントや色はメインテキストに合わせるか、プレハブの設定に従う
+        }
+
+        // データを紐付けるためにコンポーネントを追加せずにリストで管理
+        // ただし、位置更新のためにvisibleIndexやオブジェクト参照が必要
+        
+        // 簡易的な管理クラスを作らず、Dictionaryなどで管理も可能だが
+        // ここではRubyDataにGameObject参照を持たせるか、別リストにする。
+        
+        activeRubies.Add(obj);
+        
+        // 位置更新用の管理リストに追加する情報を保持したいが、
+        // activeRubiesはGameObjectのリストなので、データとの紐付けが弱い。
+        // ここでRubyDataにGameObjectの参照を持たせるのが良さそうだが、RubyDataはstruct的。
+        // 
+        // 解決策: Update内で activeRubies と rubies を回すのは非効率かつ紐付け不可。
+        // -> 新しい内部クラス ActiveRuby を作る。
+        
+        ActiveRuby active = new ActiveRuby();
+        active.rubyObject = obj;
+        active.tmp = text;
+        active.targetVisibleIndex = visibleIndex;
+        active.targetLength = ruby.visibleLength;
+        
+        activeRubyList.Add(active);
+    }
+    
+    // 実行中のルビ管理用リスト
+    private List<ActiveRuby> activeRubyList = new List<ActiveRuby>();
+
+    private class ActiveRuby
+    {
+        public GameObject rubyObject;
+        public TextMeshProUGUI tmp;
+        public int targetVisibleIndex;
+        public int targetLength;
+    }
+
+    // Updateでルビの位置を更新
+    private void UpdateRubiesPosition()
+    {
+        if (dialogueText == null || activeRubyList.Count == 0) return;
+
+        // 文字情報が更新されているか確認
+        TMP_TextInfo textInfo = dialogueText.textInfo;
+        if (textInfo == null || textInfo.characterCount == 0) return;
+
+        foreach (var active in activeRubyList)
+        {
+            if (active.rubyObject == null) continue;
+
+            // 対象の文字インデックスの情報を取得
+            int charIndex = active.targetVisibleIndex;
+            
+            // 安全策: インデックスが範囲外ならスキップ (まだ描画されていないなど)
+            if (charIndex >= textInfo.characterCount) continue;
+            
+            // 漢字の開始文字と終了文字の情報を取得して、中心を求める
+            TMP_CharacterInfo firstChar = textInfo.characterInfo[charIndex];
+            
+            // 最後の文字 (長さが1なら開始と同じ)
+            int lastIndex = charIndex + active.targetLength - 1;
+            if (lastIndex >= textInfo.characterCount) lastIndex = charIndex; // 念の為
+            TMP_CharacterInfo lastChar = textInfo.characterInfo[lastIndex];
+
+            // どちらかが不可視（改行やスペース）だと座標がおかしい場合があるが、
+            // 漢字なので基本は可視文字のはず。
+            
+            if (!firstChar.isVisible) continue;
+
+            // 座標計算 (ローカル座標系ではなく、ワールド座標系で合わせるか、親が同じならローカルで)
+            // TextMeshProの文字座標はTransformのローカル座標。
+            // rubyContainerがdialogueTextと同じ親、あるいは同じCanvas内にあれば座標変換が必要。
+            // 一番確実なのはワールド座標。
+            
+            Vector3 worldBottomLeft = dialogueText.transform.TransformPoint(firstChar.bottomLeft);
+            Vector3 worldTopRight = dialogueText.transform.TransformPoint(lastChar.topRight);
+            
+            // 中心X
+            float centerX = (worldBottomLeft.x + worldTopRight.x) / 2f;
+            // 上端Y (漢字の一番上)
+            float topY = worldTopRight.y;
+            
+            // ルビの位置を設定
+            // 少し上にずらす + インスペクターでの設定値を加算
+            active.rubyObject.transform.position = new Vector3(centerX + rubyOffset.x, topY + rubyOffset.y, 0);
+            
+            // 回転を合わせる (もし文字が回転していたら)
+            active.rubyObject.transform.rotation = dialogueText.transform.rotation;
+        }
+    }
+
     // メタデータから speed タグの値を取得（なければ -1 を返す）
     private float GetSpeedTag(string[] metadata)
     {
@@ -346,10 +502,112 @@ public class DialogueManager : DialoguePresenterBase
         return false;
     }
 
+    // Rubyタグをパースしてリストアップし、テキストからタグを除去して返す
+    private string ParseRubies(string rawText, out List<RubyData> rubies)
+    {
+        rubies = new List<RubyData>();
+        
+        // 正規表現: <ruby=reading>kanji</ruby>
+        // 非貪欲マッチ(.*?)を使って入れ子や複数マッチに対応
+        string pattern = @"<ruby=(.*?)>(.*?)</ruby>";
+        
+        // 処理中のテキスト（ここからマッチ部分を置換していく）
+        // ただし、前から順に処理しないとインデックスがずれる。
+        // Regex.Matchesで全マッチを取得してから、後ろから置換するか、
+        // StringBuilderで再構築する。
+        
+        System.Text.StringBuilder sb = new System.Text.StringBuilder();
+        int currentIndex = 0;
+        
+        foreach (System.Text.RegularExpressions.Match match in System.Text.RegularExpressions.Regex.Matches(rawText, pattern))
+        {
+            // マッチ前の通常テキストを追加
+            sb.Append(rawText.Substring(currentIndex, match.Index - currentIndex));
+            
+            // マッチ部分の処理
+            string reading = match.Groups[1].Value; // =の後の文字
+            string kanji = match.Groups[2].Value;   // タグの中身
+            
+            // 現在のSBの長さ = 置換後のテキストでの開始インデックス
+            int startIndex = sb.Length;
+            
+            // 漢字部分を追加
+            sb.Append(kanji);
+            
+            // データを記録
+            RubyData data = new RubyData();
+            data.startIndex = startIndex;
+            data.kanji = kanji;
+            data.reading = reading;
+            
+            // 表示文字数の長さ計算（HTMLタグを除く文字数）
+            data.visibleLength = GetVisibleLength(kanji);
+            
+            rubies.Add(data);
+             
+            currentIndex = match.Index + match.Length;
+        }
+        
+        // 残りのテキストを追加
+        if (currentIndex < rawText.Length)
+        {
+            sb.Append(rawText.Substring(currentIndex));
+        }
+        
+        return sb.ToString();
+    }
+    
+    // HTMLタグを除いた文字数をカウントする簡易ヘルパー
+    private int GetVisibleLength(string text)
+    {
+        bool inTag = false;
+        int length = 0;
+        for(int i=0; i<text.Length; i++)
+        {
+            if (text[i] == '<')
+            {
+                // タグ開始
+                inTag = true;
+                continue;
+            }
+            
+            if (inTag)
+            {
+                if (text[i] == '>')
+                {
+                    inTag = false;
+                }
+                continue;
+            }
+            
+            length++;
+        }
+        return length;
+    }
+
+    // 現在表示中のルビオブジェクト
+    private List<GameObject> activeRubies = new List<GameObject>();
+
     // 選択肢のコンテナ（ボタンを並べる親オブジェクト）
     public Transform optionButtonContainer;
     // 選択肢ボタンのプレハブ
     public GameObject optionButtonPrefab;
+
+    [Header("Furigana Settings")]
+    public GameObject rubyTextPrefab; // ふりがな用のプレハブ (TextMeshProUGUI)
+    public Transform rubyContainer;   // ふりがな生成場所 (DialoguePanel内など、rubyTextPrefabの親になるオブジェクト)
+    public Vector2 rubyOffset = new Vector2(0f, 5f); // 位置調整用オフセット
+
+    // ふりがなデータ
+    private class RubyData
+    {
+        public int startIndex; // fullText内での開始インデックス
+        public string kanji;   // 対象の漢字（表示される文字列）
+        public string reading; // ふりがな
+        public int visibleStartIndex; // 表示文字数カウントでの開始位置 (後で計算)
+        public int visibleLength;     // 表示文字数での長さ
+        public bool isSpawned;        // 生成済みフラグ
+    }
 
     // 最後に選ばれた選択肢のID
     private int selectedOptionIndex = -1;

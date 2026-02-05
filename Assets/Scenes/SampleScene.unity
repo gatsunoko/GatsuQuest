@@ -301,7 +301,7 @@ Transform:
   m_GameObject: {fileID: 330585543}
   serializedVersion: 2
   m_LocalRotation: {x: 0.38268343, y: 0, z: 0, w: 0.92387956}
-  m_LocalPosition: {x: -1.1, y: 5.547615, z: -6.4376154}
+  m_LocalPosition: {x: -3.2, y: 5.547615, z: -6.4376154}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -605,6 +605,8 @@ MonoBehaviour:
   optionChangeSound: {fileID: 8300000, guid: 95aa1fe0e8b7b924c9600383162e29ab, type: 3}
   optionButtonContainer: {fileID: 126094830}
   optionButtonPrefab: {fileID: 1825235981212311351, guid: 649772b636648074b95e7d27fea6be9a, type: 3}
+  rubyTextPrefab: {fileID: 1739528220702828760, guid: ecd6df2137aaa964eae64bbf19948c79, type: 3}
+  rubyContainer: {fileID: 1375805367}
 --- !u!4 &438574450
 Transform:
   m_ObjectHideFlags: 0
@@ -1785,7 +1787,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Unity.Cinemachine::Unity.Cinemachine.CinemachineCamera
   Priority:
     Enabled: 1
-    m_Value: 100
+    m_Value: 10
   OutputChannel: 1
   StandbyUpdate: 2
   m_StreamingVersion: 20241001
@@ -1823,7 +1825,7 @@ Transform:
   m_GameObject: {fileID: 1118321640}
   serializedVersion: 2
   m_LocalRotation: {x: 0.38268343, y: 0, z: 0, w: 0.92387956}
-  m_LocalPosition: {x: 1.0660099, y: 4.817615, z: -8.287616}
+  m_LocalPosition: {x: -1.0339901, y: 4.817615, z: -8.287616}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2251,7 +2253,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1375805367
 RectTransform:
   m_ObjectHideFlags: 0
@@ -2741,7 +2743,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Unity.Cinemachine::Unity.Cinemachine.CinemachineCamera
   Priority:
     Enabled: 1
-    m_Value: 50
+    m_Value: 1
   OutputChannel: 1
   StandbyUpdate: 2
   m_StreamingVersion: 20241001
@@ -2791,7 +2793,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1520741967}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.035181563, y: -0.7759279, z: 0.043445226, w: 0.62833965}
+  m_LocalRotation: {x: 0.027054925, y: -0.7590838, z: 0.031611763, w: 0.64966184}
   m_LocalPosition: {x: 23.26335, y: 1.36, z: -12.51719}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -3033,7 +3035,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: -8679921383154817045, guid: 9f564f2547bfbea46813549ba0cc8d5b, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -1.1
+      value: -3.2
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 9f564f2547bfbea46813549ba0cc8d5b, type: 3}
       propertyPath: m_LocalPosition.y
@@ -3214,7 +3216,7 @@ MonoBehaviour:
   - {fileID: 1720481926}
   objectsToDeactivate:
   - {fileID: 1123840620}
-  targetCamera: {fileID: 1520741968}
+  targetCamera: {fileID: 1925389887}
 --- !u!1001 &1798468487
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3269,7 +3271,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: c8e0d35a7ce48d6409f2ead1cb5b8120, type: 3}
       propertyPath: m_Layer
-      value: 6
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -3346,13 +3348,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1925389883}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.38268343, y: 0, z: 0, w: 0.92387956}
-  m_LocalPosition: {x: 1.0660099, y: 4.817615, z: -8.287616}
+  m_LocalRotation: {x: 0.2556182, y: -0.68754643, z: 0.28479105, w: 0.617117}
+  m_LocalPosition: {x: 3.6760926, y: 4.817615, z: -3.0399861}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1525214382}
-  m_LocalEulerAnglesHint: {x: 45, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 45, y: -96.18, z: 0}
 --- !u!114 &1925389885
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3366,7 +3368,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CM_WorldClamp
   min: {x: -71.2, y: -99999, z: -99999}
-  max: {x: -56.6, y: 99999, z: 99999}
+  max: {x: -56.6, y: 99999, z: 2.023009}
 --- !u!114 &1925389886
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3412,7 +3414,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Unity.Cinemachine::Unity.Cinemachine.CinemachineCamera
   Priority:
     Enabled: 1
-    m_Value: 100
+    m_Value: 1
   OutputChannel: 1
   StandbyUpdate: 2
   m_StreamingVersion: 20241001
@@ -3788,7 +3790,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Unity.Cinemachine::Unity.Cinemachine.CinemachineCamera
   Priority:
     Enabled: 1
-    m_Value: 50
+    m_Value: 1
   OutputChannel: 1
   StandbyUpdate: 2
   m_StreamingVersion: 20241001
@@ -3825,7 +3827,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2146647037}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.06561119, y: 0.92676806, z: -0.19255899, w: 0.31578037}
+  m_LocalRotation: {x: -0.06930832, y: 0.91435516, z: -0.17733759, w: -0.3573547}
   m_LocalPosition: {x: 16.47335, y: 1.37, z: -12.51719}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
