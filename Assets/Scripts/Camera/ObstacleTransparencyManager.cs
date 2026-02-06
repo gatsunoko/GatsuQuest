@@ -11,6 +11,9 @@ public class ObstacleTransparencyManager : MonoBehaviour
     [Header("対象設定")]
     [Tooltip("プレイヤーのTransform（空の場合はタグ'Player'から自動取得）")]
     public Transform playerTransform;
+
+    [Tooltip("プレイヤーのターゲット位置オフセット (足元からの高さ調整など)")]
+    public Vector3 playerOffset = new Vector3(0, 1.0f, 0);
     
     [Tooltip("障害物とみなすレイヤー")]
     public LayerMask obstacleLayerMask; // デフォルトでは 'Wall' などを指定
@@ -54,12 +57,19 @@ public class ObstacleTransparencyManager : MonoBehaviour
         if (playerTransform == null || cameraTransform == null) return;
 
         // カメラからプレイヤーへの方向と距離を計算
-        Vector3 direction = playerTransform.position - cameraTransform.position;
+        Vector3 targetPosition = playerTransform.position + playerOffset;
+        Vector3 direction = targetPosition - cameraTransform.position;
         float distance = direction.magnitude;
+        
+        // 方向を正規化
+        Vector3 normalizedDirection = direction.normalized;
+
+        // デバッグ表示 (Sceneビューで見えるように)
+        Debug.DrawLine(cameraTransform.position, targetPosition, Color.red);
 
         // レイキャスト（SphereCast）を実行
         // プレイヤー自身にヒットしないように、距離を少し短くする（0.5f手前まで）
-        RaycastHit[] hits = Physics.SphereCastAll(cameraTransform.position, sphereCastRadius, direction, distance - 0.5f, obstacleLayerMask);
+        RaycastHit[] hits = Physics.SphereCastAll(cameraTransform.position, sphereCastRadius, normalizedDirection, distance - 0.5f, obstacleLayerMask);
 
         // 今回のフレームでヒットしたFaderのリスト
         List<ObstacleFader> hitFaders = new List<ObstacleFader>();
@@ -114,7 +124,8 @@ public class ObstacleTransparencyManager : MonoBehaviour
         if (playerTransform != null && Camera.main != null)
         {
             Gizmos.color = Color.cyan;
-            Vector3 direction = playerTransform.position - Camera.main.transform.position;
+            Vector3 targetPosition = playerTransform.position + playerOffset;
+            Vector3 direction = targetPosition - Camera.main.transform.position;
             Gizmos.DrawRay(Camera.main.transform.position, direction);
         }
     }
