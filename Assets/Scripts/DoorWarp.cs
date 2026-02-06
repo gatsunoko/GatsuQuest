@@ -120,6 +120,28 @@ public class DoorWarp : MonoBehaviour
         player.transform.rotation = Quaternion.Euler(0, targetYAngle, 0);
 
         // 4. カメラの切り替え（指定がある場合）
+        // フェードアウト中にカメラを瞬時に切り替えるための処理
+        var brain = Camera.main.GetComponent<CinemachineBrain>();
+        var prevBlend = new CinemachineBlendDefinition();
+        CinemachineBlenderSettings prevCustomBlends = null;
+        bool brainFound = (brain != null);
+
+        if (brainFound)
+        {
+            // 現在のブレンド設定を保存し、一時的に「Cut（時間0）」に変更
+            prevBlend = brain.DefaultBlend;
+            prevCustomBlends = brain.CustomBlends;
+            brain.DefaultBlend = new CinemachineBlendDefinition(CinemachineBlendDefinition.Styles.Cut, 0);
+            brain.CustomBlends = null;
+        }
+
+        if (targetCamera != null)
+        {
+            // ターゲットカメラがプレイヤーを追従している場合、ワープとして認識させる
+            // (これをしないと、カメラが新しい位置へスムーズに移動しようとしてしまうため)
+            targetCamera.OnTargetObjectWarped(player.transform, targetDestination.position - oldPosition);
+        }
+
         SwitchCamera(targetCamera);
         
         // 5. ライトの切り替え
@@ -143,8 +165,15 @@ public class DoorWarp : MonoBehaviour
             }
         }
 
-        // 処理が安定するまで1フレーム待つ
-        yield return null;
+        // 処理が安定するまで少し待つ (CinemachineがCutを認識して適用する時間を確保)
+        yield return new WaitForSeconds(0.1f);
+
+        // ブレンド設定を元に戻す
+        if (brainFound)
+        {
+            brain.DefaultBlend = prevBlend;
+            brain.CustomBlends = prevCustomBlends;
+        }
 
         // 6. フェードイン（画面を明るくする）
         if (ScreenFader.Instance != null)
