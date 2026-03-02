@@ -747,13 +747,10 @@ public class DialogueManager : DialoguePresenterBase
         int currentSelection = 0;
         int maxSelection = buttonTexts.Count - 1;
 
-        // 初期カーソル表示（非表示のままDelayに入ると選択肢が出ているのにカーソルがない状態になるかもしれないので、ここで一旦更新推奨だが
-        // 下のループ内の更新ロジックと重複する。
-        // とりあえず初期状態(0番目)のカーソルだけONにしておくか、あるいはループに入るまでカーソルなしにするか。
-        // 要望は「選択肢が表示される」なので、カーソルもあったほうが自然。
+        // 入力待ち期間中（Delay中）はカーソルを非表示にする
         for (int i = 0; i < cursors.Count; i++)
         {
-            if (cursors[i] != null) cursors[i].SetActive(i == currentSelection);
+            if (cursors[i] != null) cursors[i].SetActive(false);
         }
 
         // 入力の誤爆を防ぐために少しだけ待つ (1秒)
@@ -767,6 +764,18 @@ public class DialogueManager : DialoguePresenterBase
 
         // もう一度リセット（念のため）
         selectedOptionIndex = -1;
+
+        // 入力可能になったタイミングで初期カーソルを表示
+        for (int i = 0; i < cursors.Count; i++)
+        {
+            if (cursors[i] != null) cursors[i].SetActive(i == currentSelection);
+        }
+
+        // カーソルが表示されたタイミングで選択肢移動の音を鳴らす
+        if (optionChangeSound != null && audioSource != null)
+        {
+            audioSource.PlayOneShot(optionChangeSound);
+        }
 
         // 入力待機ループ
         while (selectedOptionIndex == -1)
