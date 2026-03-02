@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: d50c17233c80f684081a35333f5f7afd
+ShaderImporter:
+  externalObjects: {}
+  defaultTextures: []
+  nonModifiableTextures: []
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 184623
+  packageName: Path Painter II
+  packageVersion: 2.1.12
+  assetPath: Assets/3D Haven/Path Painter II/Editor/Resources/3dhpp2_BC.shader
+  uploadId: 836966

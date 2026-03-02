@@ -114,10 +114,20 @@ public class DialogueManager : DialoguePresenterBase
             character = characterDatabase.Find(c => c.characterName == characterName);
         }
 
+        // 表示用の名前を決定（デフォルトはキャラクター名）
+        string displayCharacterName = characterName;
+        
+        // メタデータから #name タグを探して上書き
+        string nameTag = GetNameTag(dialogueLine.Metadata);
+        if (!string.IsNullOrEmpty(nameTag))
+        {
+            displayCharacterName = nameTag;
+        }
+
         // 名前表示
         if (nameText != null)
         {
-            if (string.IsNullOrEmpty(characterName))
+            if (string.IsNullOrEmpty(displayCharacterName))
             {
                 nameText.text = "";
                 nameText.gameObject.SetActive(false);
@@ -125,7 +135,7 @@ public class DialogueManager : DialoguePresenterBase
             }
             else
             {
-                nameText.text = characterName;
+                nameText.text = displayCharacterName;
                 nameText.gameObject.SetActive(true);
                 if (namePanel != null) namePanel.SetActive(true);
             }
@@ -146,12 +156,10 @@ public class DialogueManager : DialoguePresenterBase
             {
                 portraitImage.sprite = spriteToDisplay;
                 portraitImage.gameObject.SetActive(true);
-                AdjustLayout(true);
             }
             else
             {
                 portraitImage.gameObject.SetActive(false);
-                AdjustLayout(false);
             }
         }
 
@@ -363,6 +371,20 @@ public class DialogueManager : DialoguePresenterBase
             if (data.StartsWith("portrait:"))
             {
                 return data.Substring("portrait:".Length).Trim();
+            }
+        }
+        return "";
+    }
+
+    // メタデータ（タグ）から name タグの値を取得
+    private string GetNameTag(string[] metadata)
+    {
+        if (metadata == null) return "";
+        foreach (string data in metadata)
+        {
+            if (data.StartsWith("name:"))
+            {
+                return data.Substring("name:".Length).Trim();
             }
         }
         return "";
@@ -853,37 +875,5 @@ public class DialogueManager : DialoguePresenterBase
         }
 
         return null;
-    }
-
-    // レイアウト調整
-    void AdjustLayout(bool showPortrait)
-    {
-        if (dialoguePanel != null)
-        {
-            RectTransform panelRect = dialoguePanel.GetComponent<RectTransform>();
-            if (panelRect != null)
-            {
-                float padding = showPortrait ? 27f : 95f;
-                Vector2 newMin = panelRect.offsetMin;
-                newMin.x = padding;
-                panelRect.offsetMin = newMin;
-
-                Vector2 newMax = panelRect.offsetMax;
-                newMax.x = -padding; 
-                panelRect.offsetMax = newMax;
-            }
-        }
-
-        if (dialogueText != null)
-        {
-            RectTransform textRect = dialogueText.rectTransform;
-            if (textRect != null)
-            {
-                float xPos = showPortrait ? 0f : -83f;
-                Vector2 newPos = textRect.anchoredPosition;
-                newPos.x = xPos;
-                textRect.anchoredPosition = newPos;
-            }
-        }
     }
 }
