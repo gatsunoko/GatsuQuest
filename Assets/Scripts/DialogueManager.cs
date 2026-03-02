@@ -150,9 +150,9 @@ public class DialogueManager : DialoguePresenterBase
         }
 
         // --- 画像処理・レイアウト調整 ---
-        if (portraitImage != null)
+        if (portraitImage != null)//立ち絵の画像表示が有効な場合
         {
-            if (spriteToDisplay != null)
+            if (spriteToDisplay != null)//画像が表示用の変数に代入されている場合
             {
                 portraitImage.sprite = spriteToDisplay;
                 portraitImage.gameObject.SetActive(true);

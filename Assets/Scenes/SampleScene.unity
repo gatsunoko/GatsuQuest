@@ -1288,7 +1288,7 @@ MonoBehaviour:
   uiCanvas: {fileID: 839903628}
   promptText: {fileID: 1358558227}
   backgroundImage: {fileID: 895838230}
-  offset: {x: 0, y: 1.9, z: 0}
+  offset: {x: 0, y: 2.22, z: 0}
 --- !u!1 &782999378
 GameObject:
   m_ObjectHideFlags: 0
@@ -4198,7 +4198,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3811566586725737203, guid: f8166e8de502fa04299b5a34e96a0bc4, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4685761428077127023, guid: f8166e8de502fa04299b5a34e96a0bc4, type: 3}
       propertyPath: m_Pivot.x
@@ -4230,6 +4230,18 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4685761428077127023, guid: f8166e8de502fa04299b5a34e96a0bc4, type: 3}
       propertyPath: m_SizeDelta.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4685761428077127023, guid: f8166e8de502fa04299b5a34e96a0bc4, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4685761428077127023, guid: f8166e8de502fa04299b5a34e96a0bc4, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4685761428077127023, guid: f8166e8de502fa04299b5a34e96a0bc4, type: 3}
+      propertyPath: m_LocalScale.z
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4685761428077127023, guid: f8166e8de502fa04299b5a34e96a0bc4, type: 3}
@@ -4284,6 +4296,18 @@ PrefabInstance:
       propertyPath: m_Camera
       value: 
       objectReference: {fileID: 330585545}
+    - target: {fileID: 5838348081474950348, guid: f8166e8de502fa04299b5a34e96a0bc4, type: 3}
+      propertyPath: m_RenderMode
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6287936242172040168, guid: f8166e8de502fa04299b5a34e96a0bc4, type: 3}
+      propertyPath: m_UiScaleMode
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6287936242172040168, guid: f8166e8de502fa04299b5a34e96a0bc4, type: 3}
+      propertyPath: m_PresetInfoIsWorld
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

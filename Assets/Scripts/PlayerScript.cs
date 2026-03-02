@@ -104,6 +104,9 @@ public class PlayerScript : MonoBehaviour
         {
             // 会話中などはUIを強制的に隠す
             if (interactionUI != null) interactionUI.Hide();
+            
+            // 会話終了後に再判定されるよう、ターゲットをリセットしておく
+            currentInteractable = null;
         }
     }
 
